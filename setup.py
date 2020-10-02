@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
 
 requires = [
-    'python-telegram-bot'
+    'python-telegram-bot',
+    'pyyaml'
 ]
 
 setup(
