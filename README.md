@@ -1,2 +1,2 @@
-# working_helper_bot
+# work assistant
 telegram bot for simplifying some work processes
