@@ -6,8 +6,7 @@ import sys
 
 # default settings
 settings = {'access': {
-                'token': None,
-                'allowed_users': []
+                'token': None
                 }
             }
 
@@ -21,7 +20,6 @@ if not settings['access']['token']:
 
 updater = Updater(token=settings['access']['token'], use_context=True)
 dispatcher = updater.dispatcher
-
 
 def hello(update, context):
     user = update.effective_user
