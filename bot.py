@@ -58,15 +58,16 @@ if not settings['access']['token']:
 updater = Updater(token=settings['access']['token'], use_context=True)
 dispatcher = updater.dispatcher
 
-def hello(update, context):
+
+def start(update, context):
     user = update.effective_user
     chat = update.effective_chat
     update.message.reply_markdown(f'Hello, {user.username}!\n'
-                              f'Your user ID is `{user.id}`'
-                              f' and out chat ID is `{chat.id}`')
+                                  f'Your user ID is `{user.id}`'
+                                  f' and out chat ID is `{chat.id}`')
 
+dispatcher.add_handler(CommandHandler('start', start))
 
-dispatcher.add_handler(CommandHandler('hello', hello))
 
 logging.info('start polling...')
 updater.start_polling()
