@@ -2,7 +2,10 @@ from setuptools import setup, find_packages
 
 requires = [
     'python-telegram-bot',
-    'pyyaml'
+    'pyyaml',
+    'google-api-python-client',
+    'google-auth-httplib2',
+    'google-auth-oauthlib'
 ]
 
 setup(
