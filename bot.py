@@ -1,3 +1,5 @@
+import collections
+
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
@@ -46,11 +48,22 @@ settings = {
     }
 }
 
+
+def recursive_update(target_dict, update_dict):
+    for k, v in update_dict.items():
+        if isinstance(v, collections.abc.Mapping):
+            target_dict[k] = recursive_update(target_dict.get(k, {}), v)
+        else:
+            target_dict[k] = v
+    return target_dict
+
+
 with open('conf.yml') as conf:
-    settings.update(yaml.safe_load(conf))
+    recursive_update(settings, yaml.safe_load(conf))
 
 
 logging.config.dictConfig(settings['logging'])
+
 
 if not settings['access']['token']:
     logging.error('Empty bot token in conf.yml (`access/token`')
