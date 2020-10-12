@@ -29,6 +29,11 @@ settings = {
                 'filename': 'bot.log',
                 'formatter': 'default'
             },
+            'stdout': {
+                'class': 'logging.StreamHandler',
+                'level': 'INFO',
+                'formatter': 'default'
+            },
             'unknown_messages': {
                 'class': 'logging.handlers.WatchedFileHandler',
                 'level': 'DEBUG',
