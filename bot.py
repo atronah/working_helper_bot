@@ -3,6 +3,7 @@ from telegram.ext import CommandHandler
 import yaml
 import logging, logging.config
 import sys
+import threading
 
 # default settings
 settings = {
@@ -66,8 +67,20 @@ def start(update, context):
                                   f'Your user ID is `{user.id}`'
                                   f' and out chat ID is `{chat.id}`')
 
+def shutdown():
+    updater.stop()
+    updater.is_idle = False
+
+
+def stop(update, context):
+    update.message.reply_text("Bye!")
+    threading.Thread(target=shutdown).start()
+
+
 dispatcher.add_handler(CommandHandler('start', start))
+dispatcher.add_handler(CommandHandler('stop', stop))
 
 
 logging.info('start polling...')
 updater.start_polling()
+updater.idle()
