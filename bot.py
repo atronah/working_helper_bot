@@ -11,7 +11,8 @@ import threading
 # default settings
 settings = {
     'access': {
-        'token': None
+        'token': None,
+        'god_id_list': []
     },
     'logging': {
         'version': 1.0,
@@ -93,13 +94,18 @@ def shutdown():
     updater.is_idle = False
 
 
-def stop(update, context):
-    update.message.reply_text("Bye!")
-    threading.Thread(target=shutdown).start()
+def die(update, context):
+    user = update.effective_user
+    if user.id in settings['access']['god_id_list']:
+        update.message.reply_text('My fight is over!')
+        threading.Thread(target=shutdown).start()
+    else:
+        logging.warning(f'unauthorized attempt to kill: {user.name} (id={user.id})')
+        update.message.reply_text('Sorry, but you have no power to kill me.')
 
 
 dispatcher.add_handler(CommandHandler('start', start))
-dispatcher.add_handler(CommandHandler('stop', stop))
+dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(MessageHandler(Filters.all, message_logger))
 
 
