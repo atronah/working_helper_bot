@@ -1,5 +1,6 @@
 from telegram.ext import Updater
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, MessageHandler
+from telegram.ext import Filters
 import yaml
 import logging, logging.config
 import sys
@@ -67,6 +68,13 @@ def start(update, context):
                                   f'Your user ID is `{user.id}`'
                                   f' and out chat ID is `{chat.id}`')
 
+
+def message_logger(update, context):
+    logger = logging.getLogger('unknown_messages')
+    logger.debug(f'{update.effective_user.id} {update.message.text}')
+    update.message.reply_text("I don't understand what you mean, that''s why I've logged your message")
+
+
 def shutdown():
     updater.stop()
     updater.is_idle = False
@@ -79,6 +87,7 @@ def stop(update, context):
 
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('stop', stop))
+dispatcher.add_handler(MessageHandler(Filters.all, message_logger))
 
 
 logging.info('start polling...')
