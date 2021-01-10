@@ -82,7 +82,7 @@ logging.config.dictConfig(settings['logging'])
 
 
 if not settings['access']['token']:
-    logging.error('Empty bot token in conf.yml (`access/token`')
+    logging.error('Empty bot token in conf.yml (`access/token`)')
     sys.exit(1)
 
 
