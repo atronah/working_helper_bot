@@ -4,3 +4,4 @@ venv
 *.log
 *.json
 *.egg-info
+*.bak
