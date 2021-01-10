@@ -105,7 +105,7 @@ def start(update, context):
 def message_logger(update, context):
     logger = logging.getLogger('unknown_messages')
     logger.debug(f'{update.effective_user.id} {update.message.text}')
-    update.message.reply_text("I don't understand what you mean, that''s why I've logged your message")
+    update.message.reply_text("I don't understand what you mean, that's why I've logged your message")
 
 
 def shutdown():
