@@ -74,8 +74,12 @@ def recursive_update(target_dict, update_dict):
     return target_dict
 
 
-with open('conf.yml') as conf:
-    recursive_update(settings, yaml.safe_load(conf))
+if os.path.exists('conf.yml'):
+    with open('conf.yml', 'rt') as conf:
+        recursive_update(settings, yaml.safe_load(conf))
+else:
+    with open('conf.yml', 'wt') as conf:
+        yaml.dump(settings, conf)
 
 
 logging.config.dictConfig(settings['logging'])
