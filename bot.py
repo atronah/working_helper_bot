@@ -1,10 +1,12 @@
 import collections.abc
 import os
 import pickle
+from typing import Dict, Any
 
 from google_auth_httplib2 import Request
 from googleapiclient.discovery import build
-from telegram.ext import Updater
+from telegram import Update
+from telegram.ext import Updater, CallbackContext
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
 import yaml
@@ -15,7 +17,7 @@ from google_auth_oauthlib.flow import Flow
 
 
 # default settings
-settings = {
+settings: Dict[str, Any] = {
     'access': {
         'token': None,
         'god_id_list': [],
@@ -127,6 +129,7 @@ oauth_user_code = {}
 
 
 def code(update, context):
+    # type: (Update, CallbackContext) -> None
     if context.args:
         oauth_user_code[update.effective_user.id] = context.args[0]
         update.message.reply_text(f'Got it!')
@@ -135,6 +138,8 @@ def code(update, context):
 
 
 def gmail_labels(update, context):
+    # type: (Update, CallbackContext) -> None
+
     user = update.effective_user
 
     credentials = None
