@@ -179,6 +179,7 @@ def gmail_labels(update, context):
                 auth_url, _ = flow.authorization_url(prompt='consent')
                 update.message.reply_text(f'Please go to this URL: {auth_url}')
                 return
+    context.user_data['credentials'] = credentials
 
     logger.debug(f'building api instance')
     gmail_api = build('gmail', 'v1', credentials=credentials)
