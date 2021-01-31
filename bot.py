@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import os
 import pickle
 
@@ -64,8 +64,9 @@ settings = {
 }
 
 
-
 def recursive_update(target_dict, update_dict):
+    if not isinstance(update_dict, collections.abc.Mapping):
+        return target_dict
     for k, v in update_dict.items():
         if isinstance(v, collections.abc.Mapping):
             target_dict[k] = recursive_update(target_dict.get(k, {}), v)
