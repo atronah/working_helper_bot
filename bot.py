@@ -6,7 +6,7 @@ from typing import Dict, Any
 from google_auth_httplib2 import Request
 from googleapiclient.discovery import build
 from telegram import Update
-from telegram.ext import Updater, CallbackContext
+from telegram.ext import Updater, PicklePersistence, CallbackContext
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
 import yaml
@@ -93,7 +93,10 @@ if not settings['access']['token']:
     sys.exit(1)
 
 
-updater = Updater(token=settings['access']['token'], use_context=True)
+data_storage = PicklePersistence('bot.data')
+updater = Updater(token=settings['access']['token'],
+                  persistence=data_storage,
+                  use_context=True)
 dispatcher = updater.dispatcher
 
 
@@ -131,7 +134,7 @@ oauth_user_code = {}
 def code(update, context):
     # type: (Update, CallbackContext) -> None
     if context.args:
-        oauth_user_code[update.effective_user.id] = context.args[0]
+        context.user_data['auth_code'] = context.args[0]
         update.message.reply_text(f'Got it!')
     else:
         update.message.reply_text(f'Empty code')
@@ -149,10 +152,7 @@ def gmail_labels(update, context):
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists(token_filename):
-        logger.debug(f'loading gmail credentials from file {token_filename}')
-        with open(token_filename, 'rb') as token:
-            credentials = pickle.load(token)
+    credentials = context.user_data.get('credentials', None)
 
     # If there are no (valid) credentials available, let the user log in.
     if not credentials or not credentials.valid:
@@ -167,9 +167,9 @@ def gmail_labels(update, context):
                 scopes=['https://www.googleapis.com/auth/gmail.modify'],
                 redirect_uri='urn:ietf:wg:oauth:2.0:oob')
 
-            user_code = oauth_user_code.get(user.id, None)
+            user_code = context.user_data.get('auth_code', None)
             if user_code:
-                del oauth_user_code[user.id]
+                del context.user_data['auth_code']
                 # The user will get an authorization code. This code is used to get the
                 # access token.
                 flow.fetch_token(code=user_code)
@@ -178,13 +178,8 @@ def gmail_labels(update, context):
                 # Tell the user to go to the authorization URL.
                 auth_url, _ = flow.authorization_url(prompt='consent')
                 update.message.reply_text(f'Please go to this URL: {auth_url}')
-                oauth_user_code[user.id] = None
                 return
 
-        # Save the credentials for the next run
-        logger.debug(f'saving credentials')
-        with open(token_filename, 'wb') as token:
-            pickle.dump(credentials, token)
     logger.debug(f'building api instance')
     gmail_api = build('gmail', 'v1', credentials=credentials)
     response = gmail_api.users().labels().list(userId='me').execute()
