@@ -128,8 +128,6 @@ def die(update, context):
         logging.warning(f'unauthorized attempt to kill: {user.name} (id={user.id})')
         update.message.reply_text('Sorry, but you have no power to kill me.')
 
-oauth_user_code = {}
-
 
 def code(update, context):
     # type: (Update, CallbackContext) -> None
