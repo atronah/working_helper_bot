@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from google_auth_httplib2 import Request
 from googleapiclient.discovery import build
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Updater, PicklePersistence, CallbackContext
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
@@ -175,7 +175,17 @@ def gmail_labels(update, context):
             else:
                 # Tell the user to go to the authorization URL.
                 auth_url, _ = flow.authorization_url(prompt='consent')
-                update.message.reply_text(f'Please go to this URL: {auth_url}')
+                update.message.reply_markdown('To continue, you have to '
+                                              'sign in to your Google account '
+                                              'and allow access.\n'
+                                              'As a result, you''ll receive confirmation code '
+                                              'which you have to send to me '
+                                              'in a *PRIVATE* chat by command /code',
+                                              reply_markup=InlineKeyboardMarkup([
+                                                  [InlineKeyboardButton('Sign in and get code ...',
+                                                                        url=auth_url
+                                                                        )]
+                                              ]))
                 return
     context.user_data['credentials'] = credentials
 
