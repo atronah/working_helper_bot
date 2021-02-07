@@ -202,7 +202,7 @@ dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('code', code))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
-dispatcher.add_handler(MessageHandler(Filters.all, message_logger))
+dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, message_logger))
 
 
 logging.info('start polling...')
