@@ -297,6 +297,69 @@ def redmine(update, context):
         update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
 
 
+def otrs(update, context):
+    # type: (Update, CallbackContext) -> None
+
+    from otrs.ticket.template import GenericTicketConnectorSOAP
+    from otrs.client import GenericInterfaceClient
+    from otrs.ticket.objects import Ticket, Article, DynamicField, Attachment
+
+    otrs_settings = context.user_data.get('otrs', {})
+    otrs_address = otrs_settings.get('address', None)
+    otrs_username = otrs_settings.get('username', None)
+    otrs_password = otrs_settings.get('password', None)
+    webservice_name = 'GenericTicketConnectorSOAP'
+
+    if otrs_address and otrs_username and otrs_password:
+        client = GenericInterfaceClient(otrs_address, tc=GenericTicketConnectorSOAP(webservice_name))
+        client.tc.SessionCreate(user_login=otrs_username, password=otrs_password)
+
+        issues = [int(i) for i in ','.join(context.args).split(',') if i.isdigit()]
+        message = ''
+        for i in issues:
+            try:
+                ticket = client.tc.TicketGet(i, get_articles=False, get_dynamic_fields=True, get_attachments=False)
+                title = ticket.attrs.get('Title', '-')
+                state = ticket.attrs.get('State', '-')
+                plan_time_str = ticket.attrs.get('DynamicField_Plantime', None)
+                plan_time = int(plan_time_str) if plan_time_str is not None else None
+                formated_time = format_time(m=plan_time)
+                message += f'[{state}] #{i:06} - {title} ({formated_time})\n'
+            except Exception as e:
+                message += f'#{i}: {e}'
+        update.message.reply_text(message)
+    else:
+        if update.effective_chat.type is not 'private':
+            public_chat_message = markdown_escape("Access to OTRS hasn't setup yet!"
+                                                  ' Please, go to the in a'
+                                                  ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                                  ' to setup it.',
+                                                  r'!.')
+            update.message.reply_markdown_v2(public_chat_message)
+
+        if not otrs_address:
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('otrs/address',
+                 'Please send me the URL address of OTRS service')
+            )
+        if not otrs_username:
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('otrs/username',
+                 'Please send me the your username for OTRS service')
+            )
+        if not otrs_password:
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('otrs/password',
+                 'Please send me the your password for OTRS service')
+            )
+        private_message = markdown_escape('To continue, you have to '
+                                          'send me some data to access OTRS.'
+                                          , r'.')
+        update.effective_user.send_message(private_message,
+                                           parse_mode=ParseMode.MARKDOWN_V2)
+        update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
+
+
 def error_handler(update: Update, context: CallbackContext):
     update.message.reply_text(f'Internal exception: {str(context.error)}')
     raise context.error
@@ -306,6 +369,7 @@ dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
 dispatcher.add_handler(CommandHandler('redmine', redmine))
+dispatcher.add_handler(CommandHandler('otrs', otrs))
 dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))

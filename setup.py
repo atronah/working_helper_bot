@@ -6,7 +6,8 @@ requires = [
     'google-api-python-client',
     'google-auth-httplib2',
     'google-auth-oauthlib',
-    'python-redmine'
+    'python-redmine',
+    'python-otrs'
 ]
 
 setup(
