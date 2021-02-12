@@ -246,7 +246,7 @@ def gmail_labels(update, context):
 
 
 def redmine(update, context):
-    # type: (Update, CallbackContext) -> None)
+    # type: (Update, CallbackContext) -> None
 
     from redminelib import Redmine
 
@@ -291,7 +291,7 @@ def redmine(update, context):
             )
         private_message = markdown_escape('To continue, you have to '
                                           'send me some data to access Redmine.'
-                                          , r'.-')
+                                          , r'.')
         update.effective_user.send_message(private_message,
                                            parse_mode=ParseMode.MARKDOWN_V2)
         update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
