@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from google_auth_httplib2 import Request
 from googleapiclient.discovery import build, Resource
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, PicklePersistence, CallbackContext, CallbackQueryHandler
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
@@ -193,17 +193,25 @@ def gmail(update, context):
             else:
                 auth_url, gmail_settings['oauth2_state'] = flow.authorization_url(prompt='consent')
                 context.user_data['awaiting_data'] = 'gmail/auth_code'
-                reply_message = markdown_escape('To continue, you have to '
-                                                'sign in to your Google account '
-                                                'and allow access.\n'
-                                                'As a result, you''ll receive confirmation code '
-                                                'which you have to send to me '
-                                                'in a [PRIVATE](https://t.me/a_work_assistant_bot) chat'
-                                                , r'.')
-                reply_markup = InlineKeyboardMarkup([
+                if update.effective_chat.type is not 'private':
+                    message = markdown_escape('Authentication required!'
+                                              ' Please, go to the in a'
+                                              ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                              ' to pass authentication process',
+                                              r'!')
+                    update.message.reply_markdown_v2(message)
+                private_message = markdown_escape('To continue, you have to '
+                                                  'sign in to your Google account '
+                                                  'and allow requested access for that bot.\n'
+                                                  'As a result, you''ll receive confirmation code '
+                                                  'which you have to send to me in that chat.'
+                                                  , r'.')
+                private_reply_markup = InlineKeyboardMarkup([
                     [InlineKeyboardButton('Sign in to Google', url=auth_url, callback_data='awaiting_data')]
                 ])
-                update.message.reply_markdown_v2(reply_message, reply_markup=reply_markup)
+                update.effective_user.send_message(private_message,
+                                                   parse_mode=ParseMode.MARKDOWN_V2,
+                                                   reply_markup=private_reply_markup)
                 return None
     gmail_api = build('gmail', 'v1', credentials=credentials)
     return gmail_api
