@@ -109,14 +109,17 @@ def start(update, context):
 
 
 def user_message(update, context):
-    if 'awaiting_data' in context.user_data:
-        value_path = context.user_data.pop('awaiting_data')
+    awaiting_data = context.user_data.setdefault('awaiting_data', [])
+    if awaiting_data:
+        value_path, _ = awaiting_data.pop(0)
         value_dict = context.user_data
         key_list = value_path.split('/')
         for key in key_list[:-1]:
             value_dict = value_dict.setdefault(key, {})
         value_dict[key_list[-1]] = update.message.text
         update.message.reply_text('Got it!')
+        if awaiting_data:
+            update.message.reply_text(awaiting_data[0][1])
     else:
         logger = logging.getLogger('unknown_messages')
         logger.debug(f'{update.effective_user.id} {update.message.text}')
@@ -153,8 +156,12 @@ def callbacks_handler(update, context):
     q = update.callback_query
     answer = None
     if q.data == 'awaiting_data':
-        message = 'I am waiting for your answer'
-        answer = message
+        answer = 'I am waiting for your answer'
+        awaiting_data = context.user_data.get('awaiting_data', [])
+        if awaiting_data:
+            message = awaiting_data[0][1]
+        else:
+            message = answer
         update.effective_user.send_message(message)
     q.answer(answer)
 
@@ -192,7 +199,10 @@ def gmail(update, context):
                 gmail_settings['credentials'] = credentials
             else:
                 auth_url, gmail_settings['oauth2_state'] = flow.authorization_url(prompt='consent')
-                context.user_data['awaiting_data'] = 'gmail/auth_code'
+                context.user_data.setdefault('awaiting_data', []).append(
+                    ('gmail/auth_code',
+                     'Please send me the auth code that you get from the link')
+                )
                 if update.effective_chat.type is not 'private':
                     message = markdown_escape('Authentication required!'
                                               ' Please, go to the in a'
