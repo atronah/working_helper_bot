@@ -290,7 +290,7 @@ def redmine(update, context):
                  'Please send me the your auth key/token of Redmine service')
             )
         private_message = markdown_escape('To continue, you have to '
-                                          'send me that data to access Redmine.'
+                                          'send me some data to access Redmine.'
                                           , r'.-')
         update.effective_user.send_message(private_message,
                                            parse_mode=ParseMode.MARKDOWN_V2)
