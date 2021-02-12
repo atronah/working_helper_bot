@@ -230,7 +230,7 @@ def gmail_labels(update, context):
 
 
 def error_handler(update: Update, context: CallbackContext):
-    update.message.reply_text(f'Internal exception: {context.error.message}')
+    update.message.reply_text(f'Internal exception: {str(context.error)}')
     raise context.error
 
 
