@@ -171,6 +171,12 @@ def markdown_escape(text, escape_chars=r'_*[]()~`>#+-=|{}.!'):
     return re.sub('([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
 
 
+def format_time(h=0, m=0):
+    if h is None or m is None:
+        return '-'
+    return f'{(int(h) + (m // 60)):02}:{int((60 * h + m) % 60):02}'
+
+
 def gmail(update, context):
     # type: (Update, CallbackContext) -> [None, Resource]
 
@@ -239,6 +245,58 @@ def gmail_labels(update, context):
         update.message.reply_text(reply_text)
 
 
+def redmine(update, context):
+    # type: (Update, CallbackContext) -> None)
+
+    from redminelib import Redmine
+
+    redmine_settings = context.user_data.get('redmine', {})
+    redmine_address = redmine_settings.get('address', None)
+    redmine_auth_key = redmine_settings.get('auth_key', None)
+
+    if redmine_address and redmine_auth_key:
+        r = Redmine(redmine_address, key=redmine_auth_key)
+        issues = ','.join(context.args).split(',')
+        message = ''
+        for i in issues:
+            try:
+                d = r.issue.get(i)
+                message += f'#{i}: {getattr(d, "subject", "-")}\n'
+                message += f'|___>[{getattr(d, "status", "-")}] ' \
+                           f'Assigned: {getattr(d, "assigned_to", "-")} ' \
+                           f'(Spent time: {format_time(getattr(d, "total_spent_hours", 0))})\n'
+                for t in d.time_entries:
+                    message += f'    |___>{t.spent_on} {t.user} ({t.hours} hours, {format_time(t.hours)})\n'
+            except Exception as e:
+                message += f'#{i}: {e}\n'
+        update.message.reply_text(message)
+    else:
+        if update.effective_chat.type is not 'private':
+            public_chat_message = markdown_escape("Access to Redmine hasn't setup yet!"
+                                                  ' Please, go to the in a'
+                                                  ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                                  ' to setup it.',
+                                                  r'!.')
+            update.message.reply_markdown_v2(public_chat_message)
+
+        if not redmine_address:
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('redmine/address',
+                 'Please send me the URL address of Redmine service')
+            )
+        if not redmine_auth_key:
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('redmine/auth_key',
+                 'Please send me the your auth key/token of Redmine service')
+            )
+        private_message = markdown_escape('To continue, you have to '
+                                          'send me that data to access Redmine.'
+                                          , r'.-')
+        update.effective_user.send_message(private_message,
+                                           parse_mode=ParseMode.MARKDOWN_V2)
+        update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
+
+
 def error_handler(update: Update, context: CallbackContext):
     update.message.reply_text(f'Internal exception: {str(context.error)}')
     raise context.error
@@ -247,6 +305,7 @@ def error_handler(update: Update, context: CallbackContext):
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
+dispatcher.add_handler(CommandHandler('redmine', redmine))
 dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
