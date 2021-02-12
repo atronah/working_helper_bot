@@ -1,11 +1,12 @@
 import collections.abc
 import os
+import re
 from typing import Dict, Any
 
 from google_auth_httplib2 import Request
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Updater, PicklePersistence, CallbackContext
+from telegram.ext import Updater, PicklePersistence, CallbackContext, CallbackQueryHandler
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
 import yaml
@@ -107,10 +108,19 @@ def start(update, context):
                                   f' and out chat ID is `{chat.id}`')
 
 
-def message_logger(update, context):
-    logger = logging.getLogger('unknown_messages')
-    logger.debug(f'{update.effective_user.id} {update.message.text}')
-    update.message.reply_text("I don't understand what you mean, that's why I've logged your message")
+def user_message(update, context):
+    if 'awaiting_data' in context.user_data:
+        value_path = context.user_data.pop('awaiting_data')
+        value_dict = context.user_data
+        key_list = value_path.split('/')
+        for key in key_list[:-1]:
+            value_dict = value_dict.setdefault(key, {})
+        value_dict[key_list[-1]] = update.message.text
+        update.message.reply_text('Got it!')
+    else:
+        logger = logging.getLogger('unknown_messages')
+        logger.debug(f'{update.effective_user.id} {update.message.text}')
+        update.message.reply_text("I don't understand what you mean, that's why I've logged your message")
 
 
 def shutdown():
@@ -137,21 +147,30 @@ def code(update, context):
         update.message.reply_text(f'Empty code')
 
 
-def gmail_labels(update, context):
+def callbacks_handler(update, context):
     # type: (Update, CallbackContext) -> None
 
-    user = update.effective_user
+    q = update.callback_query
+    answer = None
+    if q.data == 'awaiting_data':
+        message = 'I am waiting for your answer'
+        answer = message
+        update.effective_user.send_message(message)
+    q.answer(answer)
 
-    credentials = None
-    token_filename = f'{user.id}.json'
+
+def markdown_escape(text, escape_chars=r'_*[]()~`>#+-=|{}.!'):
+    """based on telegram.utils.helpers.escape_markdown"""
+    return re.sub('([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
+
+
+def gmail(update, context):
+    # type: (Update, CallbackContext) -> [None, Resource]
+
     logger = logging.getLogger()
+    gmail_settings = context.user_data.get('gmail', {})
 
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    credentials = context.user_data.get('credentials', None)
-
-    # If there are no (valid) credentials available, let the user log in.
+    credentials = gmail_settings.get('credentials', None)
     if not credentials or not credentials.valid:
         if credentials and credentials.expired and credentials.refresh_token:
             logger.debug(f'updating existing credentials')
@@ -162,39 +181,44 @@ def gmail_labels(update, context):
             flow = Flow.from_client_secrets_file(
                 oauth_secret_filename,
                 scopes=['https://www.googleapis.com/auth/gmail.modify'],
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+                state=gmail_settings.get('oauth2_state', 'None')
+            )
 
-            user_code = context.user_data.get('auth_code', None)
-            if user_code:
-                del context.user_data['auth_code']
-                # The user will get an authorization code. This code is used to get the
-                # access token.
-                flow.fetch_token(code=user_code)
+            if 'auth_code' in gmail_settings:
+                auth_code = gmail_settings.pop('auth_code')
+                flow.fetch_token(code=auth_code)
                 credentials = flow.credentials
+                gmail_settings['credentials'] = credentials
             else:
-                # Tell the user to go to the authorization URL.
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                update.message.reply_markdown('To continue, you have to '
-                                              'sign in to your Google account '
-                                              'and allow access.\n'
-                                              'As a result, you''ll receive confirmation code '
-                                              'which you have to send to me '
-                                              'in a *PRIVATE* chat by command /code',
-                                              reply_markup=InlineKeyboardMarkup([
-                                                  [InlineKeyboardButton('Sign in and get code ...',
-                                                                        url=auth_url
-                                                                        )]
-                                              ]))
-                return
-    context.user_data['credentials'] = credentials
-
-    logger.debug(f'building api instance')
+                auth_url, gmail_settings['oauth2_state'] = flow.authorization_url(prompt='consent')
+                context.user_data['awaiting_data'] = 'gmail/auth_code'
+                reply_message = markdown_escape('To continue, you have to '
+                                                'sign in to your Google account '
+                                                'and allow access.\n'
+                                                'As a result, you''ll receive confirmation code '
+                                                'which you have to send to me '
+                                                'in a [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                                , r'.')
+                reply_markup = InlineKeyboardMarkup([
+                    [InlineKeyboardButton('Sign in to Google', url=auth_url, callback_data='awaiting_data')]
+                ])
+                update.message.reply_markdown_v2(reply_message, reply_markup=reply_markup)
+                return None
     gmail_api = build('gmail', 'v1', credentials=credentials)
-    response = gmail_api.users().labels().list(userId='me').execute()
-    reply_text = ''
-    for label in response.get('labels', []):
-        reply_text += f"{label['name']} ({label['id']})\n"
-    update.message.reply_text(reply_text)
+    return gmail_api
+
+
+def gmail_labels(update, context):
+    # type: (Update, CallbackContext) -> None
+
+    gmail_api = gmail(update, context)
+    if gmail_api:
+        response = gmail_api.users().labels().list(userId='me').execute()
+        reply_text = ''
+        for label in response.get('labels', []):
+            reply_text += f"{label['name']} ({label['id']})\n"
+        update.message.reply_text(reply_text)
 
 
 def error_handler(update: Update, context: CallbackContext):
@@ -204,9 +228,10 @@ def error_handler(update: Update, context: CallbackContext):
 
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
-dispatcher.add_handler(CommandHandler('code', code))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
-dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, message_logger))
+dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
+
+dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
 
 dispatcher.add_error_handler(error_handler)
 
