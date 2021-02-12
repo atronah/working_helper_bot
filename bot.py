@@ -197,12 +197,18 @@ def gmail_labels(update, context):
     update.message.reply_text(reply_text)
 
 
+def error_handler(update: Update, context: CallbackContext):
+    update.message.reply_text(f'Internal exception: {context.error.message}')
+    raise context.error
+
+
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('code', code))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, message_logger))
 
+dispatcher.add_error_handler(error_handler)
 
 logging.info('start polling...')
 updater.start_polling()
