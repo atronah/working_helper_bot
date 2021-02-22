@@ -141,15 +141,6 @@ def die(update, context):
         update.message.reply_text('Sorry, but you have no power to kill me.')
 
 
-def code(update, context):
-    # type: (Update, CallbackContext) -> None
-    if context.args:
-        context.user_data['auth_code'] = context.args[0]
-        update.message.reply_text(f'Got it!')
-    else:
-        update.message.reply_text(f'Empty code')
-
-
 def callbacks_handler(update, context):
     # type: (Update, CallbackContext) -> None
 
