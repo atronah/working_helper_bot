@@ -352,7 +352,8 @@ def otrs(update, context):
 
 
 def error_handler(update: Update, context: CallbackContext):
-    update.message.reply_text(f'Internal exception: {str(context.error)}')
+    context.bot.send_message(update.effective_chat.id,
+                             f'Internal exception: {str(context.error)}')
     raise context.error
 
 
