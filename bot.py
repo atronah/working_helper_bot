@@ -1,6 +1,7 @@
 import collections.abc
 import os
 import re
+from collections import OrderedDict
 from typing import Dict, Any
 
 from google_auth_httplib2 import Request
@@ -168,6 +169,31 @@ def format_time(h=0, m=0):
     return f'{(int(h) + (m // 60)):02}:{int((60 * h + m) % 60):02}'
 
 
+
+def gmail_flow(update, context):
+    # type: (Update, CallbackContext) -> [Flow]
+
+    user_gmail_settings = context.user_data.get('gmail', {})
+
+    oauth_secret_filename = settings['access']['google_api']['oauth20_secret_file']
+    return Flow.from_client_secrets_file(
+        oauth_secret_filename,
+        scopes=['https://www.googleapis.com/auth/gmail.modify'],
+        redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+        state=user_gmail_settings.get('oauth2_state', 'None')
+    )
+
+def gmail_sign_in(update, context):
+    # type: (Update, CallbackContext) -> str
+
+    user_gmail_settings = context.user_data.get('gmail', {})
+    flow = gmail_flow(update, context)
+
+    auth_url, user_gmail_settings['oauth2_state'] = flow.authorization_url(prompt='consent')
+
+    return auth_url
+
+
 def gmail(update, context):
     # type: (Update, CallbackContext) -> [None, Resource]
 
@@ -181,13 +207,7 @@ def gmail(update, context):
             credentials.refresh(Request())
         else:
             logger.debug(f'requesting credentials')
-            oauth_secret_filename = settings['access']['google_api']['oauth20_secret_file']
-            flow = Flow.from_client_secrets_file(
-                oauth_secret_filename,
-                scopes=['https://www.googleapis.com/auth/gmail.modify'],
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob',
-                state=gmail_settings.get('oauth2_state', 'None')
-            )
+            flow = gmail_flow(update, context)
 
             if 'auth_code' in gmail_settings:
                 auth_code = gmail_settings.pop('auth_code')
@@ -357,11 +377,71 @@ def error_handler(update: Update, context: CallbackContext):
     raise context.error
 
 
+def demo(update, context):
+    # type: (Update, CallbackContext) -> None
+
+    def button(key, text=None):
+        callback_data = os.path.normpath(os.path.join(path, key))
+        return InlineKeyboardButton(text or key, callback_data=callback_data)
+
+    q = update.callback_query
+    path = q.data if q else ''
+    path = path or os.sep
+
+    rows = []
+    if path == os.sep:
+        rows.append([button('gmail')])
+    elif path == '/gmail':
+        rows.append([button('auth')])
+        rows.append([button('service')])
+    elif path == '/gmail/auth':
+        user_gmail_settings = context.user_data.get('gmail', {})
+        gmail_credentials = user_gmail_settings.get('credentials')
+        if gmail_credentials and gmail_credentials.valid:
+            rows.append([button('reset')])
+        elif gmail_credentials and gmail_credentials.expired and gmail_credentials.refresh_token:
+            rows.append([button('refresh')])
+        else:
+            auth_url = gmail_sign_in(update, context)
+            rows.append([InlineKeyboardButton('Sign in (get auth code)', url=auth_url)])
+            rows.append([button('code')])
+    elif path == '/gmail/auth/code':
+        message = 'Please send me the auth code that you get from the link'
+        context.user_data.setdefault('awaiting_data', []).append(
+            ('gmail/auth_code', message)
+        )
+        context.bot.send_message(update.effective_user.id, message)
+    elif path == '/gmail/auth/refresh':
+        message = 'Please send me the auth code that you get from the link'
+        context.user_data.setdefault('awaiting_data', []).append(
+            ('gmail/auth_code', message)
+        )
+        context.bot.send_message(update.effective_user.id, message)
+    elif path == '/gmail/service':
+        rows.append([button('redmine')])
+        rows.append([button('otrs')])
+
+    if path != os.sep:
+        rows.append([button('..', 'back')])
+
+    if q:
+        q.answer(path)
+        q.edit_message_text('test', reply_markup=InlineKeyboardMarkup(rows))
+    else:
+        update.message.reply_text('Nice', reply_markup=InlineKeyboardMarkup(rows))
+
+
+
+
+
+
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
 dispatcher.add_handler(CommandHandler('redmine', redmine))
 dispatcher.add_handler(CommandHandler('otrs', otrs))
+dispatcher.add_handler(CommandHandler('demo', demo))
+dispatcher.add_handler(CallbackQueryHandler(demo, '/.*'))
 dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
