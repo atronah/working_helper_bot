@@ -4,8 +4,8 @@ import re
 from collections import OrderedDict
 from typing import Dict, Any
 
-from google_auth_httplib2 import Request
-from googleapiclient.discovery import build, Resource
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, PicklePersistence, CallbackContext, CallbackQueryHandler
 from telegram.ext import CommandHandler, MessageHandler
@@ -415,11 +415,7 @@ def demo(update, context):
             )
             context.bot.send_message(update.effective_user.id, message)
         elif path == '/gmail/auth/refresh':
-            message = 'Please send me the auth code that you get from the link'
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('gmail/auth_code', message)
-            )
-            context.bot.send_message(update.effective_user.id, message)
+            gmail_credentials.refresh(Request())
         elif path == '/gmail/auth/reset':
             del user_gmail_settings['credentials']
     elif path == '/gmail/service':
@@ -434,10 +430,6 @@ def demo(update, context):
         q.edit_message_text('test', reply_markup=InlineKeyboardMarkup(rows))
     else:
         update.message.reply_text('Nice', reply_markup=InlineKeyboardMarkup(rows))
-
-
-
-
 
 
 dispatcher.add_handler(CommandHandler('start', start))
