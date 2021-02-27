@@ -377,12 +377,15 @@ def error_handler(update: Update, context: CallbackContext):
     raise context.error
 
 
+def menu_button(path, data, text=None, is_url=False):
+    callback_data = None if is_url else os.path.normpath(os.path.join(path, data))
+    url = data if is_url else None
+    return InlineKeyboardButton(text or data, callback_data=callback_data, url=url)
+        
+
+
 def demo(update, context):
     # type: (Update, CallbackContext) -> None
-
-    def button(key, text=None):
-        callback_data = os.path.normpath(os.path.join(path, key))
-        return InlineKeyboardButton(text or key, callback_data=callback_data)
 
     q = update.callback_query
     path = q.data if q else ''
@@ -390,39 +393,41 @@ def demo(update, context):
 
     rows = []
     if path == os.sep:
-        rows.append([button('gmail')])
+        rows.append([menu_button(path, 'gmail')])
     elif path == '/gmail':
-        rows.append([button('auth')])
-        rows.append([button('service')])
-    elif path == '/gmail/auth':
+        rows.append([menu_button(path, 'auth')])
+        rows.append([menu_button(path, 'service')])
+    elif path.startswith('/gmail/auth'):
         user_gmail_settings = context.user_data.get('gmail', {})
         gmail_credentials = user_gmail_settings.get('credentials')
         if gmail_credentials and gmail_credentials.valid:
-            rows.append([button('reset')])
+            rows.append([menu_button(path, 'reset')])
         elif gmail_credentials and gmail_credentials.expired and gmail_credentials.refresh_token:
-            rows.append([button('refresh')])
+            rows.append([menu_button(path, 'refresh')])
         else:
             auth_url = gmail_sign_in(update, context)
-            rows.append([InlineKeyboardButton('Sign in (get auth code)', url=auth_url)])
-            rows.append([button('code')])
-    elif path == '/gmail/auth/code':
-        message = 'Please send me the auth code that you get from the link'
-        context.user_data.setdefault('awaiting_data', []).append(
-            ('gmail/auth_code', message)
-        )
-        context.bot.send_message(update.effective_user.id, message)
-    elif path == '/gmail/auth/refresh':
-        message = 'Please send me the auth code that you get from the link'
-        context.user_data.setdefault('awaiting_data', []).append(
-            ('gmail/auth_code', message)
-        )
-        context.bot.send_message(update.effective_user.id, message)
+            rows.append([menu_button(path, auth_url, 'Sign in (get auth code)', is_url=True)])
+            rows.append([menu_button(path, 'code')])
+        if path == '/gmail/auth/code':
+            message = 'Please send me the auth code that you get from the link'
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('gmail/auth_code', message)
+            )
+            context.bot.send_message(update.effective_user.id, message)
+        elif path == '/gmail/auth/refresh':
+            message = 'Please send me the auth code that you get from the link'
+            context.user_data.setdefault('awaiting_data', []).append(
+                ('gmail/auth_code', message)
+            )
+            context.bot.send_message(update.effective_user.id, message)
+        elif path == '/gmail/auth/reset':
+            del user_gmail_settings['credentials']
     elif path == '/gmail/service':
-        rows.append([button('redmine')])
-        rows.append([button('otrs')])
+        rows.append([menu_button(path, 'redmine')])
+        rows.append([menu_button(path, 'otrs')])
 
     if path != os.sep:
-        rows.append([button('..', 'back')])
+        rows.append([menu_button(path, '..', 'back')])
 
     if q:
         q.answer(path)
