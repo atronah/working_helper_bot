@@ -399,7 +399,14 @@ def demo(update, context):
         rows.append([menu_button(path, 'service')])
     elif path.startswith('/gmail/auth'):
         user_gmail_settings = context.user_data.get('gmail', {})
-        gmail_credentials = user_gmail_settings.get('credentials')
+        if path == '/gmail/auth/reset':
+            del user_gmail_settings['credentials']
+
+        gmail_credentials = user_gmail_settings.get('credentials', None)
+
+        if gmail_credentials and path == '/gmail/auth/refresh':
+            gmail_credentials.refresh(Request())
+
         if gmail_credentials and gmail_credentials.valid:
             rows.append([menu_button(path, 'reset')])
         elif gmail_credentials and gmail_credentials.expired and gmail_credentials.refresh_token:
@@ -414,10 +421,6 @@ def demo(update, context):
                 ('gmail/auth_code', message)
             )
             context.bot.send_message(update.effective_user.id, message)
-        elif path == '/gmail/auth/refresh':
-            gmail_credentials.refresh(Request())
-        elif path == '/gmail/auth/reset':
-            del user_gmail_settings['credentials']
     elif path == '/gmail/service':
         rows.append([menu_button(path, 'redmine')])
         rows.append([menu_button(path, 'otrs')])
