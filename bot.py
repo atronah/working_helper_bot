@@ -383,7 +383,6 @@ def menu_button(path, data, text=None, is_url=False):
     return InlineKeyboardButton(text or data, callback_data=callback_data, url=url)
         
 
-
 def demo(update, context):
     # type: (Update, CallbackContext) -> None
 
@@ -396,6 +395,7 @@ def demo(update, context):
         rows.append([menu_button(path, 'gmail')])
     elif path == '/gmail':
         rows.append([menu_button(path, 'auth')])
+        rows.append([menu_button(path, 'labels')])
         rows.append([menu_button(path, 'service')])
     elif path.startswith('/gmail/auth'):
         user_gmail_settings = context.user_data.get('gmail', {})
@@ -421,6 +421,12 @@ def demo(update, context):
                 ('gmail/auth_code', message)
             )
             context.bot.send_message(update.effective_user.id, message)
+    elif path.startswith('/gmail/labels'):
+        gmail_api = gmail(update, context)
+        if gmail_api:
+            response = gmail_api.users().labels().list(userId='me').execute()
+            for label in response.get('labels', []):
+                rows.append([menu_button(path, '..', f"{label['name']} ({label['id']})\n")])
     elif path == '/gmail/service':
         rows.append([menu_button(path, 'redmine')])
         rows.append([menu_button(path, 'otrs')])
