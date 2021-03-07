@@ -383,6 +383,41 @@ def menu_button(path, data, text=None, is_url=False):
     return InlineKeyboardButton(text or data, callback_data=callback_data, url=url)
         
 
+
+class Gmail(object):
+    NOT_AUTHORIZED, AUTHORIZATION_EXPIRED
+    def __init__(self, oauth_secret_filename):
+        self._oauth_secret_filename = oauth_secret_filename
+        self._oauth2_state = None
+        self._flow = None
+        self._credentials = None
+        
+    def flow(self):
+        return Flow.from_client_secrets_file(
+            self._oauth_secret_filename,
+            scopes=['https://www.googleapis.com/auth/gmail.modify'],
+            redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+            state=self._oauth2_state
+        )
+    
+    def auth_check(self):
+        return True
+    
+    def auth_url(self):
+        url, self._oauth2_state = self.flow().authorization_url(prompt='consent')
+        return url
+        
+    
+    def auth_confirm(self, code):
+        return auth_check()
+        
+    
+    def api(self):
+        return None
+        
+    
+    
+
 def demo(update, context):
     # type: (Update, CallbackContext) -> None
 
