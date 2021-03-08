@@ -109,6 +109,73 @@ def start(update, context):
                                   f' and out chat ID is `{chat.id}`')
 
 
+class NestedValue(object):
+    """Utility class to read/write access to value of nested object
+    For example:
+        `NestedValue(d, '/a/b/c.foo').value = 67`
+        is equivalent to
+        `d.setdefault('a', {}).setdefault('b', {}).get('c', None).foo(67)`
+        if foo is a function or equivalent to
+        `d.setdefault('a', {}).setdefault('b', {}).get('c', None).foo = 67`
+        if foo is a attribute
+    """
+    def __init__(self, storage, path):
+        self._storage = storage
+        self._path = path
+
+    @property
+    def value(self):
+        storage = self._storage
+        for key in self._path.split('/'):
+            if not key:
+                continue
+            if '.' in key:
+                key, attr = key.split('.')
+            else:
+                attr = None
+            storage = storage.get(key, None)
+            if storage and attr and hasattr(storage, attr):
+                if callable(getattr(storage, attr)):
+                    storage = getattr(storage, attr)()
+                else:
+                    storage = getattr(storage, attr)
+        return storage
+
+    @value.setter
+    def value(self, value):
+        storage = self._storage
+        target_path, target_name = os.path.split(self._path)
+
+        if not target_name:
+            return
+
+        for key in target_path.split('/'):
+            if not key:
+                continue
+            if '.' in key:
+                key, attr = key.split('.')
+            else:
+                attr = None
+            storage = storage.setdefault(key, {})
+            if attr and hasattr(storage, attr):
+                if callable(getattr(storage, attr)):
+                    storage = getattr(storage, attr)()
+                else:
+                    storage = getattr(storage, attr)
+
+        if '.' in target_name:
+            target_name, attr = target_name.split('.')
+            storage = storage.get(target_name)
+            if attr and hasattr(storage, attr):
+                if callable(getattr(storage, attr)):
+                    return getattr(storage, attr)(value)
+                else:
+                    return setattr(storage, attr, value)
+        else:
+            storage[target_name] = value
+            return value
+
+
 def user_message(update, context):
     awaiting_data = context.user_data.setdefault('awaiting_data', [])
     if awaiting_data:
