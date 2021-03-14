@@ -180,10 +180,18 @@ def user_message(update, context):
     awaiting_data = context.user_data.setdefault('awaiting_data', [])
     if awaiting_data:
         value_target_path, _, call_after = awaiting_data.pop(0)
-        NestedValue(context.user_data, value_target_path).value = update.message.text
+        if value_target_path in globals():
+            value_target_path = globals().get(value_target_path)
+            value_target_path(update, context, update.message.text)
+        else:
+            NestedValue(context.user_data, value_target_path).value = update.message.text
         update.message.reply_text('Got it!')
-        if callable(call_after):
-            call_after(update, context)
+
+        if call_after:
+            if call_after in globals():
+                call_after = globals().get(call_after)
+            if callable(call_after):
+                call_after(update, context)
         if awaiting_data:
             update.message.reply_text(awaiting_data[0][1])
     else:
@@ -234,74 +242,72 @@ def format_time(h=0, m=0):
     return f'{(int(h) + (m // 60)):02}:{int((60 * h + m) % 60):02}'
 
 
-class Gmail(object):
-    def __init__(self, oauth_secret_filename):
-        self._oauth_secret_filename = oauth_secret_filename
-        self._oauth2_state = None
-        self._credentials = None
-
-    def flow(self):
-        return Flow.from_client_secrets_file(
-            self._oauth_secret_filename,
-            scopes=['https://www.googleapis.com/auth/gmail.modify'],
-            redirect_uri='urn:ietf:wg:oauth:2.0:oob',
-            state=self._oauth2_state
-        )
-
-    def auth_check(self):
-        if not self._credentials:
-            return False, 'No credentials'
-        elif not self._credentials.valid:
-            if self._credentials.expired:
-                if not self.auth_refresh():
-                    return False, 'Credentials has been expired'
-        return True, 'Ok'
-
-    def auth_url(self):
-        url, self._oauth2_state = self.flow().authorization_url(prompt='consent')
-        return url
-
-    def auth_confirm(self, code):
-        flow = self.flow()
-        flow.fetch_token(code=code)
-        self._credentials = flow.credentials
-        return self.auth_check()
-
-    def auth_refresh(self):
-        if self._credentials and self._credentials.expired and self._credentials.refresh_token:
-            self._credentials.refresh(Request())
-            return True
-        return False
-
-    def auth_reset(self):
-        self._credentials = None
-
-    def api(self):
-        if self.auth_check()[0]:
-            return build('gmail', 'v1', credentials=self._credentials)
-        return None
+def gmail_flow(oauth2_state=None):
+    return Flow.from_client_secrets_file(
+        client_secrets_file=settings['access']['google_api']['oauth20_secret_file'],
+        scopes=['https://www.googleapis.com/auth/gmail.modify'],
+        redirect_uri='urn:ietf:wg:oauth:2.0:oob',
+        state=oauth2_state
+    )
 
 
-def get_user_gmail(update, context):
-    oauth20_secret_file = settings['access']['google_api']['oauth20_secret_file']
-    return context.user_data.setdefault('gmail', Gmail(oauth20_secret_file))
+def gmail_auth_check(update, context):
+    credentials = context.user_data.get('gmail', {}).get('credentials', None)
+    if not credentials:
+        return False, 'No credentials'
+
+    if not credentials.valid:
+        if credentials.expired:
+            if not credentials.refresh_token:
+                return False, "Credentials has been expired but doesn't have refresh token"
+            else:
+                credentials.refresh(Request())
+                return True, 'Credentials has been updated'
+        return False, 'Credentials are not valid'
+    return True, 'Ok'
+
+
+def gmail_auth_url(update, context):
+    gmail_settings = context.user_data.setdefault('gmail', {})
+    url, gmail_settings['oauth2_state'] = gmail_flow().authorization_url(prompt='consent')
+    return url
+
+
+def gmail_auth_confirm(update, context, code):
+    gmail_settings = context.user_data.setdefault('gmail', {})
+    flow = gmail_flow(gmail_settings['oauth2_state'])
+    flow.fetch_token(code=code)
+    gmail_settings['credentials'] = flow.credentials
+    return gmail_auth_check(update, context)
+
+
+def gmail_auth_reset(update, context):
+    gmail_settings = context.user_data.setdefault('gmail', {})
+    del gmail_settings['credentials']
+
+
+def gmail_api(update, context):
+    if gmail_auth_check(update, context)[0]:
+        gmail_settings = context.user_data.setdefault('gmail', {})
+        return build('gmail', 'v1', credentials=gmail_settings['credentials'])
+    return None
 
 
 def gmail_labels(update, context):
     # type: (Update, CallbackContext) -> None
 
-    gmail = get_user_gmail(update, context)
-
-    if gmail.auth_check()[0]:
-        response = gmail.api().users().labels().list(userId='me').execute()
+    if gmail_auth_check(update, context)[0]:
+        api = gmail_api(update, context)
+        response = api.users().labels().list(userId='me').execute()
         reply_text = ''
         for label in response.get('labels', []):
             reply_text += f"{label['name']} ({label['id']})\n"
         update.message.reply_text(reply_text)
     else:
-        message = f'Please send me the auth code that you get from the link: {gmail.auth_url()}'
+        auth_url = gmail_auth_url(update, context)
+        message = f'Please send me the auth code that you get from the link: {auth_url}'
         context.user_data.setdefault('awaiting_data', []).append(
-            ('gmail.auth_confirm', message, None)
+            ('gmail/auth_code', message, None)
         )
         update.message.reply_text(message)
 
@@ -431,7 +437,14 @@ def menu_button(path, data, text=None, is_url=False):
     callback_data = None if is_url else os.path.normpath(os.path.join(path, data))
     url = data if is_url else None
     return InlineKeyboardButton(text or data, callback_data=callback_data, url=url)
-        
+
+
+def reply_or_send(update, context, *args, **kwargs):
+    if update.message:
+        update.message.reply_text(*args, **kwargs)
+    else:
+        context.bot.send_message(update.effective_user.id, *args, ** kwargs)
+
 
 def demo(update, context):
     # type: (Update, CallbackContext) -> None
@@ -444,34 +457,33 @@ def demo(update, context):
     if path == os.sep:
         rows.append([menu_button(path, 'gmail')])
     elif path.startswith('/gmail'):
-        gmail = get_user_gmail(update, context)
         if path == '/gmail':
             rows.append([menu_button(path, 'auth')])
             rows.append([menu_button(path, 'labels')])
             rows.append([menu_button(path, 'service')])
         elif path.startswith('/gmail/auth'):
             if path == '/gmail/auth/reset':
-                gmail.auth_reset()
+                gmail_auth_reset(update, context)
             elif path == '/gmail/auth/code':
                 message = 'Please send me the auth code that you get from the link'
                 context.user_data.setdefault('awaiting_data', []).append(
-                    ('gmail/auth_confirm', message, None)
+                    ('gmail_auth_confirm', message, 'demo')
                 )
                 context.bot.send_message(update.effective_user.id, message)
 
-            if gmail.auth_check()[0]:
+            if gmail_auth_check(update, context)[0]:
                 rows.append([menu_button(path, 'reset')])
             else:
-                auth_url = gmail.auth_url
+                auth_url = gmail_auth_url(update, context)
                 rows.append([menu_button(path, auth_url, 'Sign in (get auth code)', is_url=True)])
                 rows.append([menu_button(path, 'code')])
         elif path.startswith('/gmail/labels'):
-            if gmail.auth_check()[0]:
-                response = gmail.api().users().labels().list(userId='me').execute()
+            if gmail_auth_check(update, context)[0]:
+                response = gmail_api(update, context).users().labels().list(userId='me').execute()
                 reply_text = ''
                 for label in response.get('labels', []):
                     rows.append([menu_button(path, '..', f"{label['name']} ({label['id']})\n")])
-                update.message.reply_text(reply_text)
+                # reply_or_send(update, context, text=reply_text)
     elif path == '/gmail/service':
         rows.append([menu_button(path, 'redmine')])
         rows.append([menu_button(path, 'otrs')])
@@ -483,7 +495,7 @@ def demo(update, context):
         q.answer(path)
         q.edit_message_text('test', reply_markup=InlineKeyboardMarkup(rows))
     else:
-        update.message.reply_text('Nice', reply_markup=InlineKeyboardMarkup(rows))
+        reply_or_send(update, context, 'Nice', reply_markup=InlineKeyboardMarkup(rows))
 
 
 dispatcher.add_handler(CommandHandler('start', start))
