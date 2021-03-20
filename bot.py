@@ -7,7 +7,7 @@ from typing import Dict, Any
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, PicklePersistence, CallbackContext, CallbackQueryHandler
+from telegram.ext import Updater, PicklePersistence, CallbackContext, CallbackQueryHandler, ConversationHandler
 from telegram.ext import CommandHandler, MessageHandler
 from telegram.ext import Filters
 import yaml
@@ -15,6 +15,7 @@ import logging, logging.config
 import sys
 import threading
 from google_auth_oauthlib.flow import Flow
+
 
 
 # default settings
@@ -101,12 +102,7 @@ updater = Updater(token=settings['access']['token'],
 dispatcher = updater.dispatcher
 
 
-def start(update, context):
-    user = update.effective_user
-    chat = update.effective_chat
-    update.message.reply_markdown(f'Hello, {user.username}!\n'
-                                  f'Your user ID is `{user.id}`'
-                                  f' and out chat ID is `{chat.id}`')
+
 
 
 class NestedValue(object):
@@ -498,7 +494,51 @@ def demo(update, context):
         reply_or_send(update, context, 'Nice', reply_markup=InlineKeyboardMarkup(rows))
 
 
-dispatcher.add_handler(CommandHandler('start', start))
+################
+
+TOP_MENU = 'TOP_MENU'
+GMAIL_MENU = 'GMAIL_MENU'
+REDMINE_MENU = 'REDMINE_MENU'
+OTRS_MENU = 'OTRS_MENU'
+
+
+def start(update, context):
+    user = update.effective_user
+    chat = update.effective_chat
+    update.message.reply_markdown(f'Hello, {user.username}!\n'
+                                  f'Your user ID is `{user.id}`'
+                                  f' and out chat ID is `{chat.id}`')
+    rows = [
+        [InlineKeyboardButton('GMail', callback_data='gmail')],
+        [InlineKeyboardButton('Redmine', callback_data='redmine')],
+        [InlineKeyboardButton('Otrs', callback_data='otrs')],
+    ]
+    update.message.reply_text('Choose service', reply_markup=InlineKeyboardMarkup(rows))
+    return TOP_MENU
+
+
+def top_menu_handler(update, context):
+    q = update.callback_query
+    q.answer()
+
+    rows = []
+    if q.data == GMAIL_MENU:
+        auth_prefix =
+        rows.append([InlineKeyboardButton('')])
+
+    return q.data
+
+
+
+
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('start', start)],
+    states={
+        TOP_MENU: [CallbackQueryHandler(top_menu_handler)]
+    },
+    fallbacks=[CommandHandler('start', start)]
+)
+dispatcher.add_handler()
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
 dispatcher.add_handler(CommandHandler('redmine', redmine))
