@@ -236,6 +236,30 @@ def gmail_labels(update, context):
         update.message.reply_text(reply_text)
 
 
+def redmine_auth(update, context):
+    if update.effective_chat.type is not 'private':
+        public_chat_message = markdown_escape("Access to Redmine hasn't setup yet!"
+                                              ' Please, go to the in a'
+                                              ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                              ' to setup it.',
+                                              r'!.')
+        update.message.reply_markdown_v2(public_chat_message)
+
+    context.user_data.setdefault('awaiting_data', []).append(
+        ('redmine/address',
+         'Please send me the URL address of Redmine service')
+    )
+    context.user_data.setdefault('awaiting_data', []).append(
+        ('redmine/auth_key',
+         'Please send me the your auth key/token of Redmine service')
+    )
+    private_message = markdown_escape('To continue, you have to '
+                                      'send me some data to access Redmine.'
+                                      , r'.')
+    update.effective_user.send_message(private_message,
+                                       parse_mode=ParseMode.MARKDOWN_V2)
+    update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
+
 def redmine(update, context):
     # type: (Update, CallbackContext) -> None
 
@@ -262,30 +286,36 @@ def redmine(update, context):
                 message += f'#{i}: {e}\n'
         update.message.reply_text(message)
     else:
-        if update.effective_chat.type is not 'private':
-            public_chat_message = markdown_escape("Access to Redmine hasn't setup yet!"
-                                                  ' Please, go to the in a'
-                                                  ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
-                                                  ' to setup it.',
-                                                  r'!.')
-            update.message.reply_markdown_v2(public_chat_message)
+        redmine_auth(update, context)
 
-        if not redmine_address:
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('redmine/address',
-                 'Please send me the URL address of Redmine service')
-            )
-        if not redmine_auth_key:
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('redmine/auth_key',
-                 'Please send me the your auth key/token of Redmine service')
-            )
-        private_message = markdown_escape('To continue, you have to '
-                                          'send me some data to access Redmine.'
-                                          , r'.')
-        update.effective_user.send_message(private_message,
-                                           parse_mode=ParseMode.MARKDOWN_V2)
-        update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
+
+def otrs_auth(update, context):
+    if update.effective_chat.type is not 'private':
+        public_chat_message = markdown_escape("Access to OTRS hasn't setup yet!"
+                                              ' Please, go to the in a'
+                                              ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
+                                              ' to setup it.',
+                                              r'!.')
+        update.message.reply_markdown_v2(public_chat_message)
+
+    context.user_data.setdefault('awaiting_data', []).append(
+        ('otrs/address',
+         'Please send me the URL address of OTRS service')
+    )
+    context.user_data.setdefault('awaiting_data', []).append(
+        ('otrs/username',
+         'Please send me the your username for OTRS service')
+    )
+    context.user_data.setdefault('awaiting_data', []).append(
+        ('otrs/password',
+         'Please send me the your password for OTRS service')
+    )
+    private_message = markdown_escape('To continue, you have to '
+                                      'send me some data to access OTRS.'
+                                      , r'.')
+    update.effective_user.send_message(private_message,
+                                       parse_mode=ParseMode.MARKDOWN_V2)
+    update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
 
 
 def otrs(update, context):
@@ -320,35 +350,7 @@ def otrs(update, context):
                 message += f'#{i}: {e}'
         update.message.reply_text(message)
     else:
-        if update.effective_chat.type is not 'private':
-            public_chat_message = markdown_escape("Access to OTRS hasn't setup yet!"
-                                                  ' Please, go to the in a'
-                                                  ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
-                                                  ' to setup it.',
-                                                  r'!.')
-            update.message.reply_markdown_v2(public_chat_message)
-
-        if not otrs_address:
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('otrs/address',
-                 'Please send me the URL address of OTRS service')
-            )
-        if not otrs_username:
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('otrs/username',
-                 'Please send me the your username for OTRS service')
-            )
-        if not otrs_password:
-            context.user_data.setdefault('awaiting_data', []).append(
-                ('otrs/password',
-                 'Please send me the your password for OTRS service')
-            )
-        private_message = markdown_escape('To continue, you have to '
-                                          'send me some data to access OTRS.'
-                                          , r'.')
-        update.effective_user.send_message(private_message,
-                                           parse_mode=ParseMode.MARKDOWN_V2)
-        update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
+        otrs_auth(update, context)
 
 
 def error_handler(update: Update, context: CallbackContext):
@@ -361,7 +363,9 @@ dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('die', die))
 dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
 dispatcher.add_handler(CommandHandler('redmine', redmine))
+dispatcher.add_handler(CommandHandler('redmine_auth', redmine_auth))
 dispatcher.add_handler(CommandHandler('otrs', otrs))
+dispatcher.add_handler(CommandHandler('otrs_auth', otrs_auth))
 dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
