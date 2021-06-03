@@ -277,11 +277,12 @@ def redmine(update, context):
             try:
                 d = r.issue.get(i)
                 message += f'#{i}: {getattr(d, "subject", "-")}\n'
-                message += f'|___>[{getattr(d, "status", "-")}] ' \
-                           f'Assigned: {getattr(d, "assigned_to", "-")} ' \
-                           f'(Spent time: {format_time(getattr(d, "total_spent_hours", 0))})\n'
+                message += f'[{getattr(d, "status", "-")}]' \
+                           f' {getattr(d, "assigned_to", "-")}' \
+                           f' ({format_time(getattr(d, "total_spent_hours", 0))})\n'
                 for t in d.time_entries:
-                    message += f'    |___>{t.spent_on} {t.user} ({t.hours} hours, {format_time(t.hours)})\n'
+                    message += f' - {t.spent_on} {format_time(t.hours)} {t.user} \n'
+                message += '\n'
             except Exception as e:
                 message += f'#{i}: {e}\n'
         update.message.reply_text(message)
@@ -344,8 +345,10 @@ def otrs(update, context):
                 state = ticket.attrs.get('State', '-')
                 plan_time_str = ticket.attrs.get('DynamicField_Plantime', None)
                 plan_time = int(plan_time_str) if plan_time_str is not None else None
-                formated_time = format_time(m=plan_time)
-                message += f'[{state}] #{i:06} - {title} ({formated_time})\n'
+                formatted_time = format_time(m=plan_time)
+                message += f'#{i}: {title}\n'
+                message += f'[{state}] ({formatted_time})\n'
+                message += '\n'
             except Exception as e:
                 message += f'#{i}: {e}'
         update.message.reply_text(message)
