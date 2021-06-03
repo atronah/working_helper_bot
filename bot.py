@@ -103,6 +103,10 @@ updater = Updater(token=settings['access']['token'],
 dispatcher = updater.dispatcher
 
 
+def md2_prepare(text, escape_chars=r'_*[]()~>#+-=|{}.!'):
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
+
 def start(update, context):
     user = update.effective_user
     chat = update.effective_chat
@@ -263,6 +267,7 @@ def redmine_auth(update, context):
                                        parse_mode=ParseMode.MARKDOWN_V2)
     update.effective_user.send_message(context.user_data['awaiting_data'][0][1])
 
+
 def redmine(update, context):
     # type: (Update, CallbackContext) -> None
 
@@ -279,16 +284,16 @@ def redmine(update, context):
         for i in issues:
             try:
                 d = r.issue.get(i)
-                message += f'#{i}: {getattr(d, "subject", "-")}\n'
-                message += f'[{getattr(d, "status", "-")}]' \
-                           f' {getattr(d, "assigned_to", "-")}' \
-                           f' ({format_time(getattr(d, "total_spent_hours", 0))})\n'
+                message += '**' + md2_prepare(f'#{i}: {getattr(d, "subject", "-")}') + '**\n'
+                message += md2_prepare(f'[{getattr(d, "status", "-")}]'
+                                       f' {getattr(d, "assigned_to", "-")}'
+                                       f' ({format_time(getattr(d, "total_spent_hours", 0))})\n')
                 for t in d.time_entries:
-                    message += f' - {t.spent_on} {format_time(t.hours)} {t.user} \n'
+                    message += md2_prepare(f' - {t.spent_on} {format_time(t.hours)} {t.user} \n')
                 message += '\n'
             except Exception as e:
-                message += f'#{i}: {e}\n'
-        update.message.reply_text(message)
+                message += md2_prepare(f'#{i}: {e}\n')
+        update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
     else:
         redmine_auth(update, context)
 
@@ -349,12 +354,12 @@ def otrs(update, context):
                 plan_time_str = ticket.attrs.get('DynamicField_Plantime', None)
                 plan_time = int(plan_time_str) if plan_time_str is not None else None
                 formatted_time = format_time(m=plan_time)
-                message += f'#{i}: {title}\n'
-                message += f'[{state}] ({formatted_time})\n'
+                message += '**' + md2_prepare(f'#{i}: {title}') + '**\n'
+                message += md2_prepare(f'[{state}] ({formatted_time})\n')
                 message += '\n'
             except Exception as e:
-                message += f'#{i}: {e}'
-        update.message.reply_text(message)
+                message += md2_prepare(f'#{i}: {e}')
+        update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
     else:
         otrs_auth(update, context)
 
@@ -367,9 +372,7 @@ def help(update: Update, context: CallbackContext):
         '- /redmine_auth - starts process of authentication in Redmine',
         '- /redmine `TASK_ID[,TASK_ID]` - shows info about tasks in Redmine with specified `TASK_ID`',
     ]
-    escape_chars = r'_*[]()~>#+-=|{}.!'
-    help_message = re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', '\n'.join(help_lines))
-    update.message.reply_markdown_v2(help_message)
+    update.message.reply_markdown_v2(md2_prepare('\n'.join(help_lines)))
 
 
 def error_handler(update: Update, context: CallbackContext):
