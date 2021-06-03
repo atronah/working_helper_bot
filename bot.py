@@ -353,6 +353,19 @@ def otrs(update, context):
         otrs_auth(update, context)
 
 
+def help(update: Update, context: CallbackContext):
+    help_lines = [
+        '- /help - shows that message',
+        '- /otrs_auth - starts process of authentication in OTRS (requests a few data, required to get access to OTRS)',
+        '- /otrs `TASK_ID[,TASK_ID]` - shows info about tasks from OTRS with specified `TASK_ID`',
+        '- /redmine_auth - starts process of authentication in Redmine',
+        '- /redmine `TASK_ID[,TASK_ID]` - shows info about tasks in Redmine with specified `TASK_ID`',
+    ]
+    escape_chars = r'_*[]()~>#+-=|{}.!'
+    help_message = re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', '\n'.join(help_lines))
+    update.message.reply_markdown_v2(help_message)
+
+
 def error_handler(update: Update, context: CallbackContext):
     context.bot.send_message(update.effective_chat.id,
                              f'Internal exception: {str(context.error)}')
@@ -366,6 +379,7 @@ dispatcher.add_handler(CommandHandler('redmine', redmine))
 dispatcher.add_handler(CommandHandler('redmine_auth', redmine_auth))
 dispatcher.add_handler(CommandHandler('otrs', otrs))
 dispatcher.add_handler(CommandHandler('otrs_auth', otrs_auth))
+dispatcher.add_handler(CommandHandler('help', help))
 dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
 dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
