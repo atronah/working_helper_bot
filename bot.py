@@ -348,7 +348,7 @@ def otrs(update, context):
         message = ''
         for i in issues:
             try:
-                ticket = client.tc.TicketGet(i, get_articles=False, get_dynamic_fields=True, get_attachments=False)
+                ticket = client.tc.TicketGet(i, get_articles=True, get_dynamic_fields=True, get_attachments=False)
                 title = ticket.attrs.get('Title', '-')
                 state = ticket.attrs.get('State', '-')
                 plan_time_str = ticket.attrs.get('DynamicField_Plantime', None)
@@ -356,6 +356,15 @@ def otrs(update, context):
                 formatted_time = format_time(m=plan_time)
                 message += '**' + md2_prepare(f'#{i}: {title}') + '**\n'
                 message += md2_prepare(f'[{state}] ({formatted_time})\n')
+                for article in ticket.articles():
+                    subject = article.attrs.get('Subject', '-')
+                    # I use subject template `(Ф:0+30) comment`
+                    # for adding internal note/article about spent time
+                    if article.attrs.get('ArticleType') == 'note-internal' \
+                            and subject.startswith('('):
+                        created = article.attrs.get('Created', '-')
+                        from_user = article.attrs.get('FromRealname', '-')
+                        message += md2_prepare(f' - {created} ({from_user}): {subject}\n')
                 message += '\n'
             except Exception as e:
                 message += md2_prepare(f'#{i}: {e}')
