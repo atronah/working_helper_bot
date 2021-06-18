@@ -207,7 +207,7 @@ def gmail(update, context):
                     ('gmail/auth_code',
                      'Please send me the auth code that you get from the link')
                 )
-                if update.effective_chat.type is not 'private':
+                if update.effective_chat.type != 'private':
                     message = markdown_escape('Authentication required!'
                                               ' Please, go to the in a'
                                               ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
@@ -244,7 +244,7 @@ def gmail_labels(update, context):
 
 
 def redmine_auth(update, context):
-    if update.effective_chat.type is not 'private':
+    if update.effective_chat.type != 'private':
         public_chat_message = markdown_escape("Access to Redmine hasn't setup yet!"
                                               ' Please, go to the in a'
                                               ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
@@ -299,7 +299,7 @@ def redmine(update, context):
 
 
 def otrs_auth(update, context):
-    if update.effective_chat.type is not 'private':
+    if update.effective_chat.type != 'private':
         public_chat_message = markdown_escape("Access to OTRS hasn't setup yet!"
                                               ' Please, go to the in a'
                                               ' [PRIVATE](https://t.me/a_work_assistant_bot) chat'
