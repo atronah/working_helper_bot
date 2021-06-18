@@ -20,6 +20,10 @@ setup(
     author='atronah',
     author_email='atronah.ds@gmail.com',
     keywords='python telegram bot gmail otrs redmine',
-    packages=find_packages(),
+    # using a package folder with the different name than the package
+    # for academic purposes (as example)
+    package_dir={'work_assistant': 'src'},
+    # manual specifying package which is in folder with different name
+    packages=['work_assistant'],
     install_requires=requires,
 )
