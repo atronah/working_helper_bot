@@ -25,5 +25,8 @@ setup(
     package_dir={'work_assistant': 'src'},
     # manual specifying package which is in folder with different name
     packages=['work_assistant'] + find_packages(),
+    entry_points={'console_scripts': [
+        'work_assistant_bot = work_assistant.bot:main'
+    ]},
     install_requires=requires,
 )
