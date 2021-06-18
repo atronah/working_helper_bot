@@ -11,7 +11,7 @@ requires = [
 ]
 
 setup(
-    name='work assistant',
+    name='work_assistant',
     version='0.1',
     description='telegram bot for simplifying some work processes',
     classifiers=[
