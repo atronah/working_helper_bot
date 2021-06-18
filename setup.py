@@ -7,7 +7,8 @@ requires = [
     'google-auth-httplib2',
     'google-auth-oauthlib',
     'python-redmine',
-    'python-otrs'
+    'python-otrs',
+    'importlib_metadata;python_version<"3.8"'
 ]
 
 setup(
@@ -26,7 +27,8 @@ setup(
     # manual specifying package which is in folder with different name
     packages=['work_assistant'] + find_packages(),
     entry_points={'console_scripts': [
-        'work_assistant_bot = work_assistant.bot:main'
+        'work_assistant_bot = work_assistant.bot:main',
+        'create_unix_service = work_assistant.create_unix_service:main'
     ]},
     install_requires=requires,
 )
