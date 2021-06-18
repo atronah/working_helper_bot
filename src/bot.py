@@ -18,7 +18,6 @@ import sys
 import threading
 from google_auth_oauthlib.flow import Flow
 
-
 # default settings
 settings: Dict[str, Any] = {
     'access': {
@@ -96,11 +95,7 @@ if not settings['access']['token']:
     sys.exit(1)
 
 
-data_storage = PicklePersistence('bot.data')
-updater = Updater(token=settings['access']['token'],
-                  persistence=data_storage,
-                  use_context=True)
-dispatcher = updater.dispatcher
+
 
 
 def md2_prepare(text, escape_chars=r'_*[]()~>#+-=|{}.!'):
@@ -390,20 +385,31 @@ def error_handler(update: Update, context: CallbackContext):
     raise context.error
 
 
-dispatcher.add_handler(CommandHandler('start', start))
-dispatcher.add_handler(CommandHandler('die', die))
-dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
-dispatcher.add_handler(CommandHandler('redmine', redmine))
-dispatcher.add_handler(CommandHandler('redmine_auth', redmine_auth))
-dispatcher.add_handler(CommandHandler('otrs', otrs))
-dispatcher.add_handler(CommandHandler('otrs_auth', otrs_auth))
-dispatcher.add_handler(CommandHandler('help', help))
-dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
+def main():
+    data_storage = PicklePersistence('bot.data')
+    updater = Updater(token=settings['access']['token'],
+                      persistence=data_storage,
+                      use_context=True)
+    dispatcher = updater.dispatcher
 
-dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('die', die))
+    dispatcher.add_handler(CommandHandler('gmail_labels', gmail_labels))
+    dispatcher.add_handler(CommandHandler('redmine', redmine))
+    dispatcher.add_handler(CommandHandler('redmine_auth', redmine_auth))
+    dispatcher.add_handler(CommandHandler('otrs', otrs))
+    dispatcher.add_handler(CommandHandler('otrs_auth', otrs_auth))
+    dispatcher.add_handler(CommandHandler('help', help))
+    dispatcher.add_handler(CallbackQueryHandler(callbacks_handler))
 
-dispatcher.add_error_handler(error_handler)
+    dispatcher.add_handler(MessageHandler(Filters.all & ~Filters.status_update, user_message))
 
-logging.info('start polling...')
-updater.start_polling()
-updater.idle()
+    dispatcher.add_error_handler(error_handler)
+
+    logging.info('start polling...')
+    updater.start_polling()
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
