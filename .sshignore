@@ -1,0 +1,4 @@
+# ssh upload/download ignoring rules for Working Copy iOS app
+
+# python virtual environment
+/venv/**
