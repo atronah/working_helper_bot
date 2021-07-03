@@ -18,7 +18,7 @@ def main():
             "[Service]",
             f"User={package_info['Name']}",
             f"WorkingDirectory={working_directory}",
-            "ExecStart=/usr/bin/env bash -c 'cd {working_directory}/ && source venv/bin/activate && work_assistant_bot'",
+            f"ExecStart=/usr/bin/env bash -c 'cd {working_directory}/ && source venv/bin/activate && work_assistant_bot'",
             "Restart=always",
             "",
             "[Install]",
