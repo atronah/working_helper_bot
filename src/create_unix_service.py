@@ -27,7 +27,7 @@ def main():
         srvc.write(os.linesep.join([
             "[Unit]",
             f"Description={package_info['Summary']}",
-        
+            "",
             "[Service]",
             f"User={user_name}",
             f"WorkingDirectory={working_directory}",
