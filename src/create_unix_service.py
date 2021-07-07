@@ -23,7 +23,7 @@ def main():
     package_info = metadata('work_assistant')
     working_directory = os.path.abspath('.')
     
-    with open(service_path, 'w') as srvc:
+    with open('tmp.service', 'w') as srvc:
         srvc.write(os.linesep.join([
             "[Unit]",
             f"Description={package_info['Summary']}",
@@ -36,3 +36,5 @@ def main():
             "",
             "[Install]",
             "WantedBy=multi-user.target"]))
+    import subprocess
+    returncode = subprocess.call(['sudo', 'mv', 'tmp.service', service_path])
